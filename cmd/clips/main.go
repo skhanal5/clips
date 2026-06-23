@@ -1,4 +1,4 @@
-// Command clippy-agent is the Twitch clip automation pipeline.
+// Command clips monitors chat and creates clips during viral moments.
 package main
 
 import (
@@ -8,12 +8,11 @@ import (
 	"os/signal"
 
 	"github.com/skhanal5/clips/internal/auth"
-	"github.com/skhanal5/clips/internal/chat"
-	"github.com/skhanal5/clips/internal/clip"
 	"github.com/skhanal5/clips/internal/config"
 	"github.com/skhanal5/clips/internal/detector"
 	"github.com/skhanal5/clips/internal/download"
 	"github.com/skhanal5/clips/internal/edit"
+	"github.com/skhanal5/clips/internal/platform"
 )
 
 func main() {
@@ -26,17 +25,22 @@ func main() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 
+	plat, err := platform.New(cfg.Platform, cfg.ClientID, cfg.Verbose)
+	if err != nil {
+		slog.Error("creating platform", "err", err)
+		os.Exit(1)
+	}
+
 	store := auth.NewStore("data/tokens/token.json")
-	token, err := auth.EnsureToken(cfg.ClientID, []string{"chat:read", "clips:edit"}, store)
+	token, err := plat.Authenticate(store)
 	if err != nil {
 		slog.Error("authentication", "err", err)
 		os.Exit(1)
 	}
 
-	monitor := chat.New(token.AccessToken, token.Username, cfg.Channels, cfg.Verbose)
-	msgs, err := monitor.Start(context.Background())
+	msgs, err := plat.StartChat(context.Background(), token, cfg.Channels)
 	if err != nil {
-		slog.Error("starting chat monitor", "err", err)
+		slog.Error("starting chat", "err", err)
 		os.Exit(1)
 	}
 
@@ -45,9 +49,7 @@ func main() {
 	defer cancel()
 	go det.Start(ctx)
 
-	clipSvc := clip.NewService(cfg.ClientID, token.AccessToken)
-
-	slog.Info("connected", "channels", cfg.Channels)
+	slog.Info("connected", "platform", plat.Name(), "channels", cfg.Channels)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -62,17 +64,16 @@ func main() {
 			det.Feed(msg)
 		case trigger := <-det.Triggers():
 			slog.Info("trigger", "streamer", trigger.Streamer, "ratio", trigger.Ratio)
-			go handleTrigger(clipSvc, trigger.Streamer)
+			go handleTrigger(plat, token, trigger.Streamer)
 		case <-sig:
 			slog.Info("shutting down")
-			monitor.Stop()
 			return
 		}
 	}
 }
 
-func handleTrigger(clipSvc *clip.Service, streamer string) {
-	result, err := clipSvc.CreateClip(streamer)
+func handleTrigger(plat platform.Interface, token *auth.Token, streamer string) {
+	result, err := plat.CreateClip(context.Background(), token, streamer)
 	if err != nil {
 		slog.Error("creating clip", "streamer", streamer, "err", err)
 		return

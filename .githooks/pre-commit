@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -n "${SKIP:-}" ]; then
+	echo "pre-commit: SKIP is set, skipping checks"
+	exit 0
+fi
+
+if ! git diff --cached --name-only | grep -q '\.go$'; then
+	exit 0
+fi
+
+PATH="$(go env GOPATH)/bin:$PATH"
+export PATH
+
+echo "pre-commit: running make check..."
+make check

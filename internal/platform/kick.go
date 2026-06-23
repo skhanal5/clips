@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	fhttp "github.com/bogdanfinn/fhttp"
+	"github.com/bogdanfinn/tls-client"
+	"github.com/bogdanfinn/tls-client/profiles"
 	"github.com/gorilla/websocket"
 
 	"github.com/skhanal5/clips/internal/auth"
@@ -17,6 +20,19 @@ import (
 
 const pusherAppKey = "eb1d5f2830810a534a6b"
 const pusherURL = "wss://ws-us2.pusher.com/app/" + pusherAppKey + "?protocol=7&client=go&version=1.5.3&flash=false"
+
+var kickClient = newKickClient()
+
+func newKickClient() tls_client.HttpClient {
+	c, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(30),
+		tls_client.WithClientProfile(profiles.Chrome_124),
+	}...)
+	if err != nil {
+		panic(fmt.Sprintf("tls client: %v", err))
+	}
+	return c
+}
 
 type kick struct{}
 
@@ -110,8 +126,20 @@ func (k *kick) StartChat(ctx context.Context, _ *auth.Token, channels []string) 
 	return out, nil
 }
 
-func (k *kick) CreateClip(_ context.Context, _ *auth.Token, _ string) (*clip.Result, error) {
-	return nil, fmt.Errorf("kick does not have a clip creation API")
+func (k *kick) CreateClip(_ context.Context, _ *auth.Token, channel string) (*clip.Result, error) {
+	clips, err := fetchClips(channel)
+	if err != nil {
+		return nil, fmt.Errorf("fetch clips: %w", err)
+	}
+	if len(clips) == 0 {
+		return nil, fmt.Errorf("no clips found for %s", channel)
+	}
+
+	c := clips[0]
+	return &clip.Result{
+		ID:  fmt.Sprintf("%d", c.ID),
+		URL: fmt.Sprintf("https://kick.com/%s?clip=%d", channel, c.ID),
+	}, nil
 }
 
 type pusherEvent struct {
@@ -140,11 +168,42 @@ type channelResponse struct {
 	} `json:"chatroom"`
 }
 
-func resolveChatroomID(slug string) (uint64, error) {
-	req, _ := http.NewRequest("GET", "https://kick.com/api/v2/channels/"+slug, nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0")
+type kickClip struct {
+	ID uint64 `json:"id"`
+}
 
-	resp, err := http.DefaultClient.Do(req)
+type clipsResponse struct {
+	Clips []kickClip `json:"clips"`
+}
+
+func fetchClips(slug string) ([]kickClip, error) {
+	req, _ := fhttp.NewRequest("GET", "https://kick.com/api/v2/channels/"+slug+"/clips?cursor=0&sort=recency", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := kickClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("kick clips api: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("kick clips api: status %d", resp.StatusCode)
+	}
+
+	var cr clipsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&cr); err != nil {
+		return nil, fmt.Errorf("decode clips: %w", err)
+	}
+	return cr.Clips, nil
+}
+
+func resolveChatroomID(slug string) (uint64, error) {
+	req, _ := fhttp.NewRequest("GET", "https://kick.com/api/v2/channels/"+slug, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := kickClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("kick api: %w", err)
 	}

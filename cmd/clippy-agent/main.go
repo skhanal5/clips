@@ -10,6 +10,7 @@ import (
 	"github.com/skhanal5/clippy-agent/internal/auth"
 	"github.com/skhanal5/clippy-agent/internal/chat"
 	"github.com/skhanal5/clippy-agent/internal/config"
+	"github.com/skhanal5/clippy-agent/internal/detector"
 )
 
 func main() {
@@ -33,6 +34,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	det := detector.New(cfg.Thresholds)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go det.Start(ctx)
+
 	slog.Info("connected", "channels", cfg.Channels)
 
 	sig := make(chan os.Signal, 1)
@@ -45,7 +51,9 @@ func main() {
 				slog.Error("chat disconnected")
 				return
 			}
-			slog.Info("chat", "channel", msg.Channel, "user", msg.User, "text", msg.Text)
+			det.Feed(msg)
+		case trigger := <-det.Triggers():
+			slog.Info("trigger", "streamer", trigger.Streamer, "score", trigger.Score)
 		case <-sig:
 			slog.Info("shutting down")
 			monitor.Stop()

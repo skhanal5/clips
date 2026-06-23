@@ -13,6 +13,7 @@ import (
 	"github.com/skhanal5/clippy-agent/internal/config"
 	"github.com/skhanal5/clippy-agent/internal/detector"
 	"github.com/skhanal5/clippy-agent/internal/download"
+	"github.com/skhanal5/clippy-agent/internal/edit"
 )
 
 func main() {
@@ -75,10 +76,17 @@ func handleTrigger(clipSvc *clip.Service, streamer string) {
 	}
 	slog.Info("clip created", "streamer", streamer, "clip_id", result.ID, "url", result.URL)
 
-	path, err := download.Clip(result.URL, result.ID, "data/clips/raw")
+	rawPath, err := download.Clip(result.URL, result.ID, "data/clips/raw")
 	if err != nil {
 		slog.Error("downloading clip", "clip_id", result.ID, "err", err)
 		return
 	}
-	slog.Info("clip downloaded", "clip_id", result.ID, "path", path)
+	slog.Info("clip downloaded", "clip_id", result.ID, "path", rawPath)
+
+	outputPath := "data/clips/processed/" + result.ID + ".mp4"
+	if err := edit.Render(rawPath, outputPath, edit.WithTemplate(edit.TemplateBlurred)); err != nil {
+		slog.Error("editing clip", "clip_id", result.ID, "err", err)
+		return
+	}
+	slog.Info("clip edited", "clip_id", result.ID, "path", outputPath)
 }

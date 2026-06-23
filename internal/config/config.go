@@ -23,8 +23,12 @@ type Config struct {
 	Thresholds Thresholds `yaml:"thresholds"`
 }
 
-// Load reads and parses a YAML config file at the given path.
+// Load reads and parses a YAML config file.
+// If a file named <path>.local exists (e.g. config.local.yaml), it takes priority.
 func Load(path string) (*Config, error) {
+	if _, err := os.Stat(path + ".local"); err == nil {
+		path = path + ".local"
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

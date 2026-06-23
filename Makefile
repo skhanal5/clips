@@ -1,6 +1,9 @@
 GOLANGCI_LINT := $(shell go env GOPATH)/bin/golangci-lint
 
-.PHONY: fmt vet lint build test check clean tools
+.PHONY: setup fmt vet lint build test check clean tools
+
+setup: tools
+	git config core.hooksPath .githooks
 
 tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest

@@ -3,7 +3,7 @@ package detector
 import (
 	"testing"
 
-	"github.com/skhanal5/clippy-agent/internal/config"
+	"github.com/skhanal5/clips/internal/config"
 )
 
 func TestComputeScoreClampsToMax(t *testing.T) {

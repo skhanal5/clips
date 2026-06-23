@@ -7,13 +7,13 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/skhanal5/clippy-agent/internal/auth"
-	"github.com/skhanal5/clippy-agent/internal/chat"
-	"github.com/skhanal5/clippy-agent/internal/clip"
-	"github.com/skhanal5/clippy-agent/internal/config"
-	"github.com/skhanal5/clippy-agent/internal/detector"
-	"github.com/skhanal5/clippy-agent/internal/download"
-	"github.com/skhanal5/clippy-agent/internal/edit"
+	"github.com/skhanal5/clips/internal/auth"
+	"github.com/skhanal5/clips/internal/chat"
+	"github.com/skhanal5/clips/internal/clip"
+	"github.com/skhanal5/clips/internal/config"
+	"github.com/skhanal5/clips/internal/detector"
+	"github.com/skhanal5/clips/internal/download"
+	"github.com/skhanal5/clips/internal/edit"
 )
 
 func main() {

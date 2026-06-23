@@ -7,13 +7,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Thresholds configures the detection engine's scoring and cooldown behavior.
+// Thresholds configures the detection engine's spike detection.
 type Thresholds struct {
-	MessagesPerSecond int `yaml:"messages_per_second"`
-	UniqueUsers       int `yaml:"unique_users"`
-	EmotesPerWindow   int `yaml:"emotes_per_window"`
-	CooldownSeconds   int `yaml:"cooldown_seconds"`
-	EvaluationWindow  int `yaml:"evaluation_window"`
+	EvaluationSeconds int     `yaml:"evaluation_seconds"`
+	BaselineSeconds   int     `yaml:"baseline_seconds"`
+	TriggerRatio      float64 `yaml:"trigger_ratio"`
+	CooldownSeconds   int     `yaml:"cooldown_seconds"`
 }
 
 // Config holds the application settings loaded from config.yaml.

@@ -2,53 +2,61 @@ package detector
 
 import (
 	"testing"
+	"time"
 
+	"github.com/skhanal5/clips/internal/chat"
 	"github.com/skhanal5/clips/internal/config"
 )
 
-func TestComputeScoreClampsToMax(t *testing.T) {
-	d := New(config.Thresholds{
-		MessagesPerSecond: 10,
-		UniqueUsers:       10,
-		EmotesPerWindow:   20,
+func TestEvaluateTriggersOnSpike(t *testing.T) {
+	cfg := config.Thresholds{
+		EvaluationSeconds: 10,
+		BaselineSeconds:   300,
+		TriggerRatio:      4,
 		CooldownSeconds:   300,
-		EvaluationWindow:  10,
-	})
+	}
+	d := New(cfg)
+	now := time.Now()
 
-	// All factors above threshold — each clamped to 1.0 => score = 1.0
-	score := d.computeScore(100, 100, 100)
-	if score != 1.0 {
-		t.Errorf("expected 1.0, got %f", score)
+	for i := 0; i < 200; i++ {
+		d.Feed(chat.Message{Channel: "test", Timestamp: now.Add(-time.Duration(300-i) * time.Second)})
+	}
+
+	for i := 0; i < 40; i++ {
+		d.Feed(chat.Message{Channel: "test", Timestamp: now.Add(-time.Duration(9) * time.Second)})
+	}
+
+	d.evaluate()
+
+	select {
+	case tr := <-d.Triggers():
+		if tr.Ratio < cfg.TriggerRatio {
+			t.Errorf("expected ratio >= 4, got %f", tr.Ratio)
+		}
+	default:
+		t.Error("expected trigger, got none")
 	}
 }
 
-func TestComputeScoreZeroInput(t *testing.T) {
-	d := New(config.Thresholds{
-		MessagesPerSecond: 10,
-		UniqueUsers:       10,
-		EmotesPerWindow:   20,
+func TestEvaluateNoTriggerOnSteady(t *testing.T) {
+	cfg := config.Thresholds{
+		EvaluationSeconds: 10,
+		BaselineSeconds:   300,
+		TriggerRatio:      4,
 		CooldownSeconds:   300,
-		EvaluationWindow:  10,
-	})
-
-	score := d.computeScore(0, 0, 0)
-	if score != 0.0 {
-		t.Errorf("expected 0.0, got %f", score)
 	}
-}
+	d := New(cfg)
+	now := time.Now()
 
-func TestComputeScoreHalfThreshold(t *testing.T) {
-	d := New(config.Thresholds{
-		MessagesPerSecond: 10,
-		UniqueUsers:       10,
-		EmotesPerWindow:   20,
-		CooldownSeconds:   300,
-		EvaluationWindow:  10,
-	})
+	for i := 0; i < 60; i++ {
+		d.Feed(chat.Message{Channel: "test", Timestamp: now.Add(-time.Duration(300-i*5) * time.Second)})
+	}
 
-	// Each factor at 50% of threshold => (0.5 + 0.5 + 0.5) / 3 = 0.5
-	score := d.computeScore(5, 5, 10)
-	if score != 0.5 {
-		t.Errorf("expected 0.5, got %f", score)
+	d.evaluate()
+
+	select {
+	case <-d.Triggers():
+		t.Error("unexpected trigger on steady activity")
+	default:
 	}
 }

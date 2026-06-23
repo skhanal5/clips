@@ -22,7 +22,7 @@ build:
 	go build ./...
 
 test:
-	go test ./... -v -race -count=1
+	go test ./... -race -count=1
 
 check: fmt vet lint build test
 

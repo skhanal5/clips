@@ -1,18 +1,21 @@
 package edit
 
 import (
+	"os"
 	"os/exec"
 )
 
-// Render processes a video file with the given options and writes the output.
-func Render(inputPath, outputPath string, opts ...Option) error {
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
+// Config controls the video editing behavior.
+type Config struct {
+	Background  string // "blurred", "black", or "image"
+	BgImagePath string // used when Background is "image"
+	Title       string // optional overlay text
+}
 
-	args := buildArgs(inputPath, outputPath, options)
+// Render processes a video file with the given config and writes the output.
+func Render(inputPath, outputPath string, cfg Config) error {
+	args := buildArgs(inputPath, outputPath, cfg)
 	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stderr = nil
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }

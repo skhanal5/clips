@@ -84,7 +84,7 @@ func handleTrigger(clipSvc *clip.Service, streamer string) {
 	slog.Info("clip downloaded", "clip_id", result.ID, "path", path)
 
 	outputPath := "data/clips/processed/" + result.ID + ".mp4"
-	if err := edit.Render(path, outputPath, edit.WithTemplate(edit.TemplateBlurred)); err != nil {
+	if err := edit.Render(path, outputPath, edit.Config{Background: "blurred"}); err != nil {
 		slog.Error("editing clip", "clip_id", result.ID, "err", err)
 		return
 	}

@@ -17,6 +17,7 @@ type Thresholds struct {
 
 // Config holds the application settings loaded from config.yaml.
 type Config struct {
+	Platform   string     `yaml:"platform"`
 	ClientID   string     `yaml:"client_id"`
 	Channels   []string   `yaml:"channels"`
 	Verbose    bool       `yaml:"verbose"`

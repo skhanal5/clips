@@ -1,8 +1,7 @@
 client_id: ""
 channels: []
 thresholds:
-  messages_per_second: 10
-  unique_users: 10
-  emotes_per_window: 20
+  evaluation_seconds: 10
+  baseline_seconds: 300
+  trigger_ratio: 4
   cooldown_seconds: 300
-  evaluation_window: 10

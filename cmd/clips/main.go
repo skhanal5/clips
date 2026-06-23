@@ -61,7 +61,7 @@ func main() {
 			}
 			det.Feed(msg)
 		case trigger := <-det.Triggers():
-			slog.Info("trigger", "streamer", trigger.Streamer, "score", trigger.Score)
+			slog.Info("trigger", "streamer", trigger.Streamer, "ratio", trigger.Ratio)
 			go handleTrigger(clipSvc, trigger.Streamer)
 		case <-sig:
 			slog.Info("shutting down")

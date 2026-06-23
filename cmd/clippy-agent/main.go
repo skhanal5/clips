@@ -9,8 +9,10 @@ import (
 
 	"github.com/skhanal5/clippy-agent/internal/auth"
 	"github.com/skhanal5/clippy-agent/internal/chat"
+	"github.com/skhanal5/clippy-agent/internal/clip"
 	"github.com/skhanal5/clippy-agent/internal/config"
 	"github.com/skhanal5/clippy-agent/internal/detector"
+	"github.com/skhanal5/clippy-agent/internal/download"
 )
 
 func main() {
@@ -39,6 +41,8 @@ func main() {
 	defer cancel()
 	go det.Start(ctx)
 
+	clipSvc := clip.NewService(cfg.ClientID, token.AccessToken)
+
 	slog.Info("connected", "channels", cfg.Channels)
 
 	sig := make(chan os.Signal, 1)
@@ -54,10 +58,27 @@ func main() {
 			det.Feed(msg)
 		case trigger := <-det.Triggers():
 			slog.Info("trigger", "streamer", trigger.Streamer, "score", trigger.Score)
+			go handleTrigger(clipSvc, trigger.Streamer)
 		case <-sig:
 			slog.Info("shutting down")
 			monitor.Stop()
 			return
 		}
 	}
+}
+
+func handleTrigger(clipSvc *clip.Service, streamer string) {
+	result, err := clipSvc.CreateClip(streamer)
+	if err != nil {
+		slog.Error("creating clip", "streamer", streamer, "err", err)
+		return
+	}
+	slog.Info("clip created", "streamer", streamer, "clip_id", result.ID, "url", result.URL)
+
+	path, err := download.Clip(result.URL, result.ID, "data/clips/raw")
+	if err != nil {
+		slog.Error("downloading clip", "clip_id", result.ID, "err", err)
+		return
+	}
+	slog.Info("clip downloaded", "clip_id", result.ID, "path", path)
 }

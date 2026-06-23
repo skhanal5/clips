@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skhanal5/clippy-agent/internal/chat"
-	"github.com/skhanal5/clippy-agent/internal/config"
+	"github.com/skhanal5/clips/internal/chat"
+	"github.com/skhanal5/clips/internal/config"
 )
 
 // ClipTrigger is emitted when a channel's chat activity exceeds the threshold.

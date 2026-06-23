@@ -1,4 +1,4 @@
-module github.com/skhanal5/clippy-agent
+module github.com/skhanal5/clips
 
 go 1.24.4
 

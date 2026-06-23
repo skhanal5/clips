@@ -3,6 +3,7 @@ package chat
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ type Monitor struct {
 	username string
 	token    string
 	channels []string
+	verbose  bool
 	msgs     chan Message
 	client   *twitch.Client
 	cancel   context.CancelFunc
@@ -30,11 +32,12 @@ type Monitor struct {
 }
 
 // New creates a Monitor for the given channels.
-func New(token, username string, channels []string) *Monitor {
+func New(token, username string, channels []string, verbose bool) *Monitor {
 	return &Monitor{
 		username: username,
 		token:    token,
 		channels: channels,
+		verbose:  verbose,
 		msgs:     make(chan Message, 1000),
 	}
 }
@@ -44,7 +47,7 @@ func (m *Monitor) Start(ctx context.Context) (<-chan Message, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	m.cancel = cancel
 
-	client := twitch.NewClient(m.username, m.token)
+	client := twitch.NewClient(m.username, "oauth:"+m.token)
 	m.client = client
 
 	for _, ch := range m.channels {
@@ -55,6 +58,14 @@ func (m *Monitor) Start(ctx context.Context) (<-chan Message, error) {
 		emoteCount := 0
 		for _, e := range msg.Emotes {
 			emoteCount += e.Count
+		}
+		if m.verbose {
+			slog.Debug("chat message",
+				"channel", msg.Channel,
+				"user", msg.User.Name,
+				"text", msg.Message,
+				"emotes", emoteCount,
+			)
 		}
 		m.msgs <- Message{
 			User:       msg.User.Name,
@@ -71,6 +82,7 @@ func (m *Monitor) Start(ctx context.Context) (<-chan Message, error) {
 		defer cancel()
 
 		if err := client.Connect(); err != nil {
+			slog.Error("irc connect failed", "err", err)
 			close(m.msgs)
 		}
 	}()

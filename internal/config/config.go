@@ -20,6 +20,7 @@ type Thresholds struct {
 type Config struct {
 	ClientID   string     `yaml:"client_id"`
 	Channels   []string   `yaml:"channels"`
+	Verbose    bool       `yaml:"verbose"`
 	Thresholds Thresholds `yaml:"thresholds"`
 }
 

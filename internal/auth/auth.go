@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -93,19 +94,33 @@ func DeviceCodeFlow(clientID string, scopes []string) (*Token, error) {
 
 		var errResp struct {
 			Error            string `json:"error"`
+			Message          string `json:"message"`
 			ErrorDescription string `json:"error_description"`
 		}
-		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		var rawBody []byte
+		rawBody, _ = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 
-		switch errResp.Error {
+		_ = json.Unmarshal(rawBody, &errResp)
+
+		// Twitch sometimes uses "message" instead of "error".
+		errCode := errResp.Error
+		if errCode == "" {
+			errCode = errResp.Message
+		}
+
+		if errCode == "" {
+			return nil, fmt.Errorf("auth error: status %d, body %s", resp.StatusCode, string(rawBody))
+		}
+
+		switch errCode {
 		case "authorization_pending":
 		case "slow_down":
 			interval += 5 * time.Second
 		case "access_denied":
 			return nil, fmt.Errorf("access denied by user")
 		default:
-			return nil, fmt.Errorf("auth error: %s", errResp.ErrorDescription)
+			return nil, fmt.Errorf("auth error: %s - %s", errCode, errResp.ErrorDescription)
 		}
 	}
 

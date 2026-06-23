@@ -1,2 +1,3 @@
 /clips
-config.local.yaml
+config.yaml.local
+data/

@@ -76,15 +76,15 @@ func handleTrigger(clipSvc *clip.Service, streamer string) {
 	}
 	slog.Info("clip created", "streamer", streamer, "clip_id", result.ID, "url", result.URL)
 
-	rawPath, err := download.Clip(result.URL, result.ID, "data/clips/raw")
+	path, err := download.Clip(result.URL, result.ID, "data/clips/raw")
 	if err != nil {
 		slog.Error("downloading clip", "clip_id", result.ID, "err", err)
 		return
 	}
-	slog.Info("clip downloaded", "clip_id", result.ID, "path", rawPath)
+	slog.Info("clip downloaded", "clip_id", result.ID, "path", path)
 
 	outputPath := "data/clips/processed/" + result.ID + ".mp4"
-	if err := edit.Render(rawPath, outputPath, edit.WithTemplate(edit.TemplateBlurred)); err != nil {
+	if err := edit.Render(path, outputPath, edit.WithTemplate(edit.TemplateBlurred)); err != nil {
 		slog.Error("editing clip", "clip_id", result.ID, "err", err)
 		return
 	}

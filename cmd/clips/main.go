@@ -22,6 +22,9 @@ func main() {
 		slog.Error("loading config", "err", err)
 		os.Exit(1)
 	}
+	if cfg.Verbose {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
 
 	store := auth.NewStore("data/tokens/token.json")
 	token, err := auth.EnsureToken(cfg.ClientID, []string{"chat:read", "clips:edit"}, store)
@@ -30,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	monitor := chat.New(token.AccessToken, token.Username, cfg.Channels)
+	monitor := chat.New(token.AccessToken, token.Username, cfg.Channels, cfg.Verbose)
 	msgs, err := monitor.Start(context.Background())
 	if err != nil {
 		slog.Error("starting chat monitor", "err", err)

@@ -1,5 +1,9 @@
 package edit
 
+import (
+	"os/exec"
+)
+
 // Render processes a video file with the given options and writes the output.
 func Render(inputPath, outputPath string, opts ...Option) error {
 	options := &Options{}
@@ -7,13 +11,8 @@ func Render(inputPath, outputPath string, opts ...Option) error {
 		opt(options)
 	}
 
-	cmd, err := buildFFmpegCommand(inputPath, outputPath, options)
-	if err != nil {
-		return err
-	}
-
-	return cmd.
-		OverWriteOutput().
-		ErrorToStdOut().
-		Run()
+	args := buildArgs(inputPath, outputPath, options)
+	cmd := exec.Command("ffmpeg", args...)
+	cmd.Stderr = nil
+	return cmd.Run()
 }

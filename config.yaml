@@ -1,2 +1,8 @@
 client_id: ""
 channels: []
+thresholds:
+  messages_per_second: 10
+  unique_users: 10
+  emotes_per_window: 20
+  cooldown_seconds: 300
+  evaluation_window: 10

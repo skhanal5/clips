@@ -11,10 +11,11 @@ import (
 
 // Message represents a single Twitch chat message.
 type Message struct {
-	User      string
-	Channel   string
-	Text      string
-	Timestamp time.Time
+	User       string
+	Channel    string
+	Text       string
+	Timestamp  time.Time
+	EmoteCount int
 }
 
 // Monitor connects to Twitch IRC and streams chat messages.
@@ -51,11 +52,16 @@ func (m *Monitor) Start(ctx context.Context) (<-chan Message, error) {
 	}
 
 	client.OnPrivateMessage(func(msg twitch.PrivateMessage) {
+		emoteCount := 0
+		for _, e := range msg.Emotes {
+			emoteCount += e.Count
+		}
 		m.msgs <- Message{
-			User:      msg.User.Name,
-			Channel:   msg.Channel,
-			Text:      msg.Message,
-			Timestamp: msg.Time,
+			User:       msg.User.Name,
+			Channel:    msg.Channel,
+			Text:       msg.Message,
+			Timestamp:  msg.Time,
+			EmoteCount: emoteCount,
 		}
 	})
 

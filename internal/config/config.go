@@ -7,10 +7,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Thresholds configures the detection engine's scoring and cooldown behavior.
+type Thresholds struct {
+	MessagesPerSecond int `yaml:"messages_per_second"`
+	UniqueUsers       int `yaml:"unique_users"`
+	EmotesPerWindow   int `yaml:"emotes_per_window"`
+	CooldownSeconds   int `yaml:"cooldown_seconds"`
+	EvaluationWindow  int `yaml:"evaluation_window"`
+}
+
 // Config holds the application settings loaded from config.yaml.
 type Config struct {
-	ClientID string   `yaml:"client_id"`
-	Channels []string `yaml:"channels"`
+	ClientID   string     `yaml:"client_id"`
+	Channels   []string   `yaml:"channels"`
+	Thresholds Thresholds `yaml:"thresholds"`
 }
 
 // Load reads and parses a YAML config file at the given path.

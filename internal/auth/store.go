@@ -4,6 +4,7 @@ package auth
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -45,7 +46,7 @@ func (s *Store) Load() (*Token, error) {
 
 // Save writes a token to the store file.
 func (s *Store) Save(token *Token) error {
-	dir := s.path[:len(s.path)-len("/token.json")]
+	dir := filepath.Dir(s.path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}

@@ -7,55 +7,48 @@ import (
 	"strings"
 )
 
-var canvasWidth = 1080
-var canvasHeight = 1920
+const (
+	canvasWidth  = 1080
+	canvasHeight = 1920
+	defaultFgW   = 1080
+	defaultFgH   = 607
+)
 
-var defaultFgWidth = 1080
-var defaultFgHeight = 607
-
-func buildArgs(inputPath, outputPath string, options *Options) []string {
-	fgW := options.ForegroundSize.Width
-	fgH := options.ForegroundSize.Height
-	if fgW == 0 || fgH == 0 {
-		fgW = defaultFgWidth
-		fgH = defaultFgHeight
-	}
-
-	bgLabel := "b"
-	fgLabel := "f"
-	overlayX := (canvasWidth - fgW) / 2
-	overlayY := (canvasHeight - fgH) / 2
+func buildArgs(inputPath, outputPath string, cfg Config) []string {
+	fgW := defaultFgW
+	fgH := defaultFgH
 
 	var bgFilter string
-	switch options.Background {
-	case BlackScreen:
-		bgFilter = fmt.Sprintf("color=c=black:s=%dx%d:d=1[%s]", canvasWidth, canvasHeight, bgLabel)
-	case BlurredVideo:
+	switch cfg.Background {
+	case "black":
+		bgFilter = fmt.Sprintf("color=c=black:s=%dx%d:d=1[b]", canvasWidth, canvasHeight)
+	case "blurred":
 		bgFilter = fmt.Sprintf(
-			"[0:v]scale=%d:%d:force_original_aspect_ratio=increase,boxblur=50,crop=%d:%d[%s]",
-			canvasWidth, canvasHeight, canvasWidth, canvasHeight, bgLabel,
+			"[0:v]scale=%d:%d:force_original_aspect_ratio=increase,boxblur=50,crop=%d:%d[b]",
+			canvasWidth, canvasHeight, canvasWidth, canvasHeight,
 		)
-	case StaticImage:
-		if options.BgImagePath != "" {
-			bgFilter = fmt.Sprintf(
-				"[1:v]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d[%s]",
-				canvasWidth, canvasHeight, canvasWidth, canvasHeight, bgLabel,
-			)
-		}
+	case "image":
+		bgFilter = fmt.Sprintf(
+			"[1:v]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d[b]",
+			canvasWidth, canvasHeight, canvasWidth, canvasHeight,
+		)
 	}
 
 	fgFilter := fmt.Sprintf(
-		"[0:v]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,format=yuv420p[%s]",
-		fgW, fgH, fgW, fgH, fgLabel,
+		"[0:v]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,format=yuv420p[f]",
+		fgW, fgH, fgW, fgH,
 	)
 
-	filterParts := []string{bgFilter, fgFilter}
-	overlayFilter := fmt.Sprintf("[%s][%s]overlay=x=%d:y=%d", bgLabel, fgLabel, overlayX, overlayY)
+	overlayX := (canvasWidth - fgW) / 2
+	overlayY := (canvasHeight - fgH) / 2
 
-	if options.Title != "" {
-		filterParts = append(filterParts, buildTitleFilters(options.Title, fgH)...)
+	filterParts := []string{bgFilter, fgFilter}
+
+	if cfg.Title != "" {
+		filterParts = append(filterParts, buildTitleFilters(cfg.Title, fgH)...)
 	}
 
+	overlayFilter := fmt.Sprintf("[b][f]overlay=x=%d:y=%d", overlayX, overlayY)
 	allFilters := append(filterParts, overlayFilter)
 	filterComplex := strings.Join(allFilters, ";")
 
@@ -69,8 +62,8 @@ func buildArgs(inputPath, outputPath string, options *Options) []string {
 		outputPath,
 	}
 
-	if options.Background == StaticImage && options.BgImagePath != "" {
-		args = append([]string{"-i", options.BgImagePath, "-i", inputPath}, args[1:]...)
+	if cfg.Background == "image" && cfg.BgImagePath != "" {
+		args = append([]string{"-i", cfg.BgImagePath, "-i", inputPath}, args[1:]...)
 	}
 
 	return args
@@ -88,9 +81,10 @@ func buildTitleFilters(title string, fgHeight int) []string {
 	lines := splitTextIntoLines(title, charactersPerLine)
 	var filters []string
 	for i, line := range lines {
+		escaped := strings.ReplaceAll(line, "'", "'\\''")
 		f := fmt.Sprintf(
 			"drawtext=text='%s':fontfile=font/Montserrat-Bold.ttf:fontsize=72:fontcolor=white:x=(w-text_w)/2:y=%d:borderw=10:bordercolor=black",
-			line, startY+i*lineHeight,
+			escaped, startY+i*lineHeight,
 		)
 		filters = append(filters, f)
 	}

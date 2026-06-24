@@ -23,8 +23,6 @@ func New(platformName, clientID string, verbose bool) (Interface, error) {
 	switch platformName {
 	case "twitch":
 		return &twitch{clientID: clientID, verbose: verbose}, nil
-	case "kick":
-		return &kick{}, nil
 	default:
 		return nil, fmt.Errorf("unknown platform: %s", platformName)
 	}

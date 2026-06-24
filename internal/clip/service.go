@@ -70,7 +70,28 @@ func (s *Service) getBroadcasterID(channelName string) (string, error) {
 	return ur.Data[0].ID, nil
 }
 
+func (s *Service) getClip(id string) (bool, error) {
+	req, _ := http.NewRequest("GET", "https://api.twitch.tv/helix/clips?id="+id, nil)
+	req.Header.Set("Authorization", "Bearer "+s.accessToken)
+	req.Header.Set("Client-Id", s.clientID)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("get clip: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	var gr struct {
+		Data []struct{} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&gr); err != nil {
+		return false, fmt.Errorf("decode get clip: %w", err)
+	}
+	return len(gr.Data) > 0, nil
+}
+
 // CreateClip creates a Twitch clip for the given channel and returns its ID and URL.
+// It polls GET /clips until the clip is available or the timeout is reached.
 func (s *Service) CreateClip(channelName string) (*Result, error) {
 	broadcasterID, err := s.getBroadcasterID(channelName)
 	if err != nil {
@@ -100,8 +121,22 @@ func (s *Service) CreateClip(channelName string) (*Result, error) {
 	}
 
 	clipID := cr.Data[0].ID
-	return &Result{
-		ID:  clipID,
-		URL: "https://clips.twitch.tv/" + clipID,
-	}, nil
+
+	pollStart := time.Now()
+	deadline := 15 * time.Second
+	for time.Since(pollStart) < deadline {
+		ready, err := s.getClip(clipID)
+		if err != nil {
+			return nil, fmt.Errorf("poll clip: %w", err)
+		}
+		if ready {
+			return &Result{
+				ID:  clipID,
+				URL: "https://clips.twitch.tv/" + clipID,
+			}, nil
+		}
+		time.Sleep(time.Second)
+	}
+
+	return nil, fmt.Errorf("clip %s not ready after 15s", clipID)
 }

@@ -18,25 +18,36 @@ func buildArgs(inputPath, outputPath string, cfg Config) []string {
 	fgW := defaultFgW
 	fgH := defaultFgH
 
-	var bgFilter string
+	var bgFilterTpl string
 	switch cfg.Background {
 	case "black":
-		bgFilter = fmt.Sprintf("color=c=black:s=%dx%d:d=1[b]", canvasWidth, canvasHeight)
+		bgFilterTpl = "color=c=black:s=%dx%d:d=1[b]"
 	case "blurred":
-		bgFilter = fmt.Sprintf(
-			"[0:v]scale=%d:%d:force_original_aspect_ratio=increase,boxblur=50,crop=%d:%d[b]",
-			canvasWidth, canvasHeight, canvasWidth, canvasHeight,
-		)
+		bgFilterTpl = "[%s]scale=%d:%d:force_original_aspect_ratio=increase,boxblur=50,crop=%d:%d[b]"
 	case "image":
-		bgFilter = fmt.Sprintf(
-			"[1:v]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d[b]",
-			canvasWidth, canvasHeight, canvasWidth, canvasHeight,
-		)
+		bgFilterTpl = "[%s]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d[b]"
 	}
 
+	fgInput := "0:v"
+	bgInput := "0:v"
+	audioInput := "0:a"
+	inputs := []string{"-i", inputPath}
+
+	if cfg.Background == "image" && cfg.BgImagePath != "" {
+		inputs = []string{"-i", cfg.BgImagePath, "-i", inputPath}
+		fgInput = "1:v"
+		audioInput = "1:a"
+	}
+
+	var bgFilter string
+	if cfg.Background == "black" {
+		bgFilter = fmt.Sprintf(bgFilterTpl, canvasWidth, canvasHeight)
+	} else {
+		bgFilter = fmt.Sprintf(bgFilterTpl, bgInput, canvasWidth, canvasHeight, canvasWidth, canvasHeight)
+	}
 	fgFilter := fmt.Sprintf(
-		"[0:v]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,format=yuv420p[f]",
-		fgW, fgH, fgW, fgH,
+		"[%s]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,format=yuv420p[f]",
+		fgInput, fgW, fgH, fgW, fgH,
 	)
 
 	overlayX := (canvasWidth - fgW) / 2
@@ -52,19 +63,14 @@ func buildArgs(inputPath, outputPath string, cfg Config) []string {
 	allFilters := append(filterParts, overlayFilter)
 	filterComplex := strings.Join(allFilters, ";")
 
-	args := []string{
-		"-i", inputPath,
+	args := append(inputs,
 		"-filter_complex", filterComplex,
-		"-map", "1:a",
+		"-map", audioInput,
 		"-c:a", "copy",
 		"-shortest",
 		"-y",
 		outputPath,
-	}
-
-	if cfg.Background == "image" && cfg.BgImagePath != "" {
-		args = append([]string{"-i", cfg.BgImagePath, "-i", inputPath}, args[1:]...)
-	}
+	)
 
 	return args
 }
